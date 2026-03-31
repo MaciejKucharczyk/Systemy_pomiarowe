@@ -3,12 +3,17 @@
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 #include "secrets.h"
+#include <map>
 
 WiFiClient espClient;
 PubSubClient mqttClient(espClient);
 
 String deviceId;
 String topic;
+
+int tempCounter = 0;
+int humCounter = 0; 
+int pressCounter = 0;
 
 String generateDeviceIdFromEfuse()
 {
@@ -72,14 +77,16 @@ void connectMQTT()
   }
 }
 
-void publishMeasurement(float temp_raw)
+void publishMeasurement(String topic, String label, float value, int precision, String unit, int counter)
 {
   JsonDocument doc;
+  doc["schema_version"] = "1.0";
   doc["device_id"] = deviceId;
-  doc["sensor"] = "temperature";
-  doc["value"] = temp_raw;
-  doc["unit"] = "C";
-  doc["ts_ms"] = millis();
+  doc["sensor_type"] = label;
+  doc["value"] = value;
+  doc["unit"] = unit;
+  doc["timestamp"] = millis();
+  doc["message_seq"] = counter;
   char payload[256];
   serializeJson(doc, payload);
   mqttClient.publish(topic.c_str(), payload);
@@ -87,12 +94,73 @@ void publishMeasurement(float temp_raw)
   Serial.println(topic);
   Serial.println(payload);
 }
+
+void publishStatus(String sensor_type, String status, String message)
+{ 
+  JsonDocument doc;
+  doc["schema_version"] = "1.0";
+  doc["device_id"] = deviceId;
+  doc["sensor_type"] = sensor_type;
+  doc["status"] = status;
+  doc["message"] = message;
+  doc["code"] = 123;
+  doc["timestamp"] = millis();
+
+  String topic = topic + "/status/" + status;
+  char payload[256];
+  serializeJson(doc, payload);
+  mqttClient.publish(topic.c_str(), payload);
+  Serial.print("Publikacja na topic: ");
+  Serial.println(topic);
+  Serial.println(payload);
+}
+
+void processMeasurement(float temp, float hum, float pres)
+{ 
+  String errorType = "Nan value";
+  // Walidacja
+  if(!isnan(temp))
+  {
+    tempCounter+=1;
+    publishMeasurement(topic + "/temperature", "temperature", temp, 2, " C", tempCounter);
+    publishStatus("temperature", "SUCCESS", "");
+  }
+  else 
+  {
+    publishStatus("temperature", "ERROR: " + errorType, "[ERROR] Blad odczytu danych z czujnika");
+  }
+
+  if(!isnan(hum))
+  {
+    humCounter+=1;
+    publishMeasurement(topic + "/humidity",  "humidity",    hum, 1, " %", humCounter);
+    publishStatus("humidity", "SUCCESS", "");
+  }
+  else
+  {
+    publishStatus("humidity", "ERROR: " + errorType, "[ERROR] Blad odczytu danych z czujnika");
+  }
+
+  if(!isnan(pres))
+  {
+    pressCounter+=1;
+    publishMeasurement(topic + "/pressure", "pressure",    pres, 0, " hPa", pressCounter);
+    publishStatus("pressure", "SUCCESS", "");
+  }
+  else
+  {
+    publishStatus("pressure", "ERROR: " + errorType, "[ERROR] Blad odczytu danych z czujnika");
+  }
+  
+}
+
 void setup()
 {
   Serial.begin(115200);
   delay(1000);
   deviceId = generateDeviceIdFromEfuse();
-  topic = "lab/" + String(MQTT_GROUP) + "/" + deviceId + "/temperature";
+  // topic = "lab/" + String(MQTT_GROUP) + "/" + deviceId + "/temperature";
+  topic = "lab/" + String(MQTT_GROUP) + "/" + deviceId;
   Serial.print("Device ID: ");
   Serial.println(deviceId);
   connectWiFi();
@@ -108,11 +176,10 @@ void loop()
   if (!mqttClient.connected())
   {
     connectMQTT();
-    float temp_raw = get_temperature_built_in();
-    Serial.println(temp_raw);
   }
   float temp_raw = get_temperature_built_in();
+  Serial.println(temp_raw);
   mqttClient.loop();
-  publishMeasurement(temp_raw);
+  processMeasurement(temp_raw, 0, 0);
   delay(5000);
 }
