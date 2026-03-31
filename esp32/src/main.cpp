@@ -20,6 +20,20 @@ String generateDeviceIdFromEfuse()
   return String(id);
 }
 
+float get_temperature_built_in()
+{
+  float temp_f = temperatureRead();
+  if (isnan(temp_f)) {
+    Serial.print("[ERROR] Brak odczytu temperatury");
+    return NAN;
+  }
+  float temp_c = (temp_f - 32) / 1.8;
+  Serial.print("Odczyt temperatury: ");
+  Serial.print(temp_c);
+  Serial.println(" C");
+  return temp_c;
+}
+
 void connectWiFi()
 {
   Serial.print("Laczenie z Wi-Fi: ");
@@ -58,12 +72,12 @@ void connectMQTT()
   }
 }
 
-void publishMeasurement()
+void publishMeasurement(float temp_raw)
 {
-  StaticJsonDocument<256> doc;
+  JsonDocument doc;
   doc["device_id"] = deviceId;
   doc["sensor"] = "temperature";
-  doc["value"] = 24.5;
+  doc["value"] = temp_raw;
   doc["unit"] = "C";
   doc["ts_ms"] = millis();
   char payload[256];
@@ -94,8 +108,11 @@ void loop()
   if (!mqttClient.connected())
   {
     connectMQTT();
+    float temp_raw = get_temperature_built_in();
+    Serial.println(temp_raw);
   }
+  float temp_raw = get_temperature_built_in();
   mqttClient.loop();
-  publishMeasurement();
+  publishMeasurement(temp_raw);
   delay(5000);
 }
