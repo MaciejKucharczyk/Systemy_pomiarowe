@@ -7,7 +7,7 @@ from config import MQTT_HOST, MQTT_PORT
 MEASURE_MSG_FIELDS_RULES = {
     "schema_version": {
         "type": str,
-        "min_len": 1
+        "min_len": 3
     },
     "device_id": {
         "type": str,
@@ -18,14 +18,16 @@ MEASURE_MSG_FIELDS_RULES = {
         "min_len": 1
     },
     "value": {
-        "type": float,
+        "type": (float, int),
     },
     "timestamp": {
         "type": int,
+        "min": 0
     },
     "message_seq": {
         "type": int,
-        "optional": True
+        "optional": True,
+        "min": 0
     },
     "unit": {
         "type": str,
@@ -46,21 +48,25 @@ STATUS_MSG_FIELDS_RULES = {
         "type": str,
         "min_len": 1
     },
-    "value": {
-        "type": float,
+    "status": {
+        "type": str,
+        "min_len": 1
+    },
+    "code": {
+        "type": int,
+        "min": 0
     },
     "timestamp": {
         "type": int,
+        "min": 0
     },
-    "message_seq": {
-        "type": int,
-        "optional": True
-    },
-    "unit": {
+    "message": {
         "type": str,
+        "min_len": 1,
         "optional": True
-    }
+    },
 }
+
 
 def store_measurement(topic, data: dict):
     conn = get_connection()
@@ -88,16 +94,33 @@ def store_measurement(topic, data: dict):
 def is_valid(data: dict, fields_rules: dict):
 
     for field, rules in fields_rules.items():
-        is_optional = "optional" in rules.keys() and rules["optional"] == True
+        r_keys = rules.keys()
 
         # Sprawdzenie czy pole istnieje, pomiń jeśli jest opcjonalne
-        if field not in data.keys() and not is_optional:
-            return False
+        if field not in data.keys():
+            if "optional" in r_keys and rules["optional"] == True:
+                continue
+            return False            
         
+        value = data.get(field)
+
         # Sprawdzenie czy wartość pola posiada odpowiedni typ
-        if field in data.keys() and not isinstance(data.get(field), rules["type"]):
+        if not isinstance(value, rules["type"]):
             return False
-        
+                        
+        if isinstance(value, str) and "min_len" in r_keys:
+            if len(value) < rules["min_len"]:
+                return False
+            
+        if isinstance(value, (float, int)):
+            min = rules["min"] if "min" in r_keys else None
+            max = rules["max"] if "max" in r_keys else None
+
+            if min is not None and value < min:
+                return False
+            if max is not None and value > max:
+                return False
+            
     return True
 
 
@@ -109,8 +132,12 @@ def on_message(client, userdata, msg):
     data = json.loads(msg.payload.decode())
    
     if(is_valid(data, MEASURE_MSG_FIELDS_RULES)):
+        print("Wiadomosc poprawna -> zapis do bazy")
         store_measurement(msg.topic, data)    
     
+    else:
+        print("Wiadomosc niepoprawna -> pomin")
+
 
 mqtt_client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
 mqtt_client.on_connect = on_connect
