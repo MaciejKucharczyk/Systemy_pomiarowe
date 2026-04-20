@@ -3,3 +3,5 @@ api/secrets.py
 .gitignore
 api/__pycache__/*
 ingestor/__pycache__/*
+ingestor/test.py
+esp32/include/secrets.h

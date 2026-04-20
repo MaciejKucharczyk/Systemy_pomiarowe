@@ -3,6 +3,65 @@ import json
 from db import get_connection
 from config import MQTT_HOST, MQTT_PORT
 
+
+MEASURE_MSG_FIELDS_RULES = {
+    "schema_version": {
+        "type": str,
+        "min_len": 1
+    },
+    "device_id": {
+        "type": str,
+        "min_len": 1
+    },
+    "sensor_type": {
+        "type": str,
+        "min_len": 1
+    },
+    "value": {
+        "type": float,
+    },
+    "timestamp": {
+        "type": int,
+    },
+    "message_seq": {
+        "type": int,
+        "optional": True
+    },
+    "unit": {
+        "type": str,
+        "optional": True
+    }
+}
+
+STATUS_MSG_FIELDS_RULES = {
+    "schema_version": {
+        "type": str,
+        "min_len": 1
+    },
+    "device_id": {
+        "type": str,
+        "min_len": 1
+    },
+    "sensor_type": {
+        "type": str,
+        "min_len": 1
+    },
+    "value": {
+        "type": float,
+    },
+    "timestamp": {
+        "type": int,
+    },
+    "message_seq": {
+        "type": int,
+        "optional": True
+    },
+    "unit": {
+        "type": str,
+        "optional": True
+    }
+}
+
 def store_measurement(topic, data: dict):
     conn = get_connection()
     cur = conn.cursor()
@@ -26,22 +85,17 @@ def store_measurement(topic, data: dict):
     conn.close()
 
 
-def is_valid(data: dict):
-    req_fields = [
-        "schema_version",
-        "device_id",
-        "sensor_type",
-        "value",
-        "timestamp",
-        "message_seq"
-    ]
-    opt_fields = [
-        "unit",
-        "message_req"
-    ]
+def is_valid(data: dict, fields_rules: dict):
 
-    for key in req_fields:
-        if key not in data.keys():
+    for field, rules in fields_rules.items():
+        is_optional = "optional" in rules.keys() and rules["optional"] == True
+
+        # Sprawdzenie czy pole istnieje, pomiń jeśli jest opcjonalne
+        if field not in data.keys() and not is_optional:
+            return False
+        
+        # Sprawdzenie czy wartość pola posiada odpowiedni typ
+        if field in data.keys() and not isinstance(data.get(field), rules["type"]):
             return False
         
     return True
@@ -53,7 +107,9 @@ def on_connect(client, userdata, flags, reason_code, props):
 
 def on_message(client, userdata, msg):
     data = json.loads(msg.payload.decode())
-    store_measurement(msg.topic, data)
+   
+    if(is_valid(data, MEASURE_MSG_FIELDS_RULES)):
+        store_measurement(msg.topic, data)    
     
 
 mqtt_client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
