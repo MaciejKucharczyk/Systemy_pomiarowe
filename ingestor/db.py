@@ -1,5 +1,5 @@
 import psycopg2 
-from secrets import DB_HOST, DB_NAME, DB_PASSWORD, DB_USER
+from config import DB_HOST, DB_NAME, DB_PASSWORD, DB_USER
 
 def get_connection():
     return psycopg2.connect(
@@ -8,3 +8,5 @@ def get_connection():
         user=DB_USER,
         password=DB_PASSWORD
     )
+
+print(get_connection())

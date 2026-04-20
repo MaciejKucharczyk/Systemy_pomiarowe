@@ -4,9 +4,15 @@
 #include <ArduinoJson.h>
 #include "secrets.h"
 #include <map>
+#include <DallasTemperature.h>
+
+#define TEMP_DS18B20_PIN 4
 
 WiFiClient espClient;
 PubSubClient mqttClient(espClient);
+
+OneWire oneWire(TEMP_DS18B20_PIN);
+DallasTemperature sensors(&oneWire);
 
 String deviceId;
 String topic;
@@ -27,12 +33,20 @@ String generateDeviceIdFromEfuse()
 
 float get_temperature_built_in()
 {
-  float temp_f = temperatureRead();
-  if (isnan(temp_f)) {
-    Serial.print("[ERROR] Brak odczytu temperatury");
+  sensors.requestTemperatures();
+  float temp_f = sensors.getTempCByIndex(0);
+
+  Serial.println(temp_f);
+  //temperatureRead();
+  // if (isnan(temp_f)) {
+  //   Serial.print("[ERROR] Brak odczytu temperatury");
+  //   return NAN;
+  // }
+  if(temp_f == DEVICE_DISCONNECTED_C) {
+     Serial.print("[ERROR] Brak odczytu temperatury");
     return NAN;
   }
-  float temp_c = (temp_f - 32) / 1.8;
+  float temp_c = temp_f;//(temp_f - 32) / 1.8;
   Serial.print("Odczyt temperatury: ");
   Serial.print(temp_c);
   Serial.println(" C");
@@ -91,7 +105,7 @@ void publishMeasurement(String topic, String label, float value, int precision, 
   serializeJson(doc, payload);
   mqttClient.publish(topic.c_str(), payload);
   Serial.print("Publikacja na topic: ");
-  Serial.println(topic);
+  Serial.println(topic.c_str());
   Serial.println(payload);
 }
 
@@ -119,17 +133,18 @@ void processMeasurement(float temp, float hum, float pres)
 { 
   String errorType = "Nan value";
   // Walidacja
-  if(!isnan(temp))
+  if(isnan(temp))
   {
     tempCounter+=1;
-    publishMeasurement(topic + "/temperature", "temperature", temp, 2, " C", tempCounter);
-    publishStatus("temperature", "SUCCESS", "");
+    publishMeasurement("lab/g2/esp/temperature", "temperature", temp, 2, " C", tempCounter);
+    // publishStatus("temperature", "SUCCESS", "");
   }
   else 
   {
-    publishStatus("temperature", "ERROR: " + errorType, "[ERROR] Blad odczytu danych z czujnika");
+    // publishStatus("temperature", "ERROR: " + errorType, "[ERROR] Blad odczytu danych z czujnika");
   }
 
+  return;
   if(!isnan(hum))
   {
     humCounter+=1;
