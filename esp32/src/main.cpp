@@ -5,14 +5,17 @@
 #include "secrets.h"
 #include <map>
 #include <DallasTemperature.h>
+#include <dht11.h>
 
 #define TEMP_DS18B20_PIN 4
+#define HUM_DHT11_PIN 7
 
 WiFiClient espClient;
 PubSubClient mqttClient(espClient);
 
 OneWire oneWire(TEMP_DS18B20_PIN);
 DallasTemperature sensors(&oneWire);
+dht11 DHT11;
 
 String deviceId;
 String topic;
@@ -37,13 +40,29 @@ float get_temperature()
   float temp_c = sensors.getTempCByIndex(0);
  
   if(temp_c == DEVICE_DISCONNECTED_C) {
-     Serial.print("[ERROR] Brak odczytu temperatury");
+     Serial.println("[ERROR] Brak odczytu temperatury");
     return NAN;
   }
   Serial.print("Odczyt temperatury: ");
   Serial.print(temp_c);
   Serial.println(" C");
   return temp_c;
+}
+
+float get_humidity() {
+  // int chk = DHT11.read(HUM_DHT11_PIN);
+
+  // if(chk != DHTLIB_OK) {
+  //    Serial.print("[ERROR] Brak odczytu wilgotnosci");
+  //   return NAN;
+  // }
+  // float hum = (float)DHT11.humidity;
+
+  // Serial.print("Odczyt wilgotnosci: ");
+  // Serial.print(hum);
+  // Serial.println(" %");
+
+  return 0;
 }
 
 void connectWiFi()
@@ -113,12 +132,12 @@ void publishStatus(String sensor_type, String status, String message)
   doc["code"] = 123;
   doc["timestamp"] = millis();
 
-  String topic = topic + "/status/" + status;
+  String newTopic = topic + "/status/" + sensor_type;
   char payload[256];
   serializeJson(doc, payload);
-  mqttClient.publish(topic.c_str(), payload);
-  Serial.print("Publikacja na topic: ");
-  Serial.println(topic);
+  mqttClient.publish(newTopic.c_str(), payload);
+  Serial.print("Publikacja na topic [status]: ");
+  Serial.println(newTopic);
   Serial.println(payload);
 }
 
@@ -129,36 +148,35 @@ void processMeasurement(float temp, float hum, float pres)
   if(!isnan(temp))
   {
     tempCounter+=1;
-    publishMeasurement("lab/g2/esp/temperature", "temperature", temp, 2, " C", tempCounter);
-    // publishStatus("temperature", "SUCCESS", "");
+    publishMeasurement(topic + "/temperature", "temperature", temp, 2, " C", tempCounter);
   }
   else 
   {
-    // publishStatus("temperature", "ERROR: " + errorType, "[ERROR] Blad odczytu danych z czujnika");
+    publishStatus("temperature", "error", "[ERROR] Blad odczytu danych z czujnika");
   }
 
-  return;
-  if(!isnan(hum))
-  {
-    humCounter+=1;
-    publishMeasurement(topic + "/humidity",  "humidity",    hum, 1, " %", humCounter);
-    publishStatus("humidity", "SUCCESS", "");
-  }
-  else
-  {
-    publishStatus("humidity", "ERROR: " + errorType, "[ERROR] Blad odczytu danych z czujnika");
-  }
+  // publishStatus("humidity", "ERROR: " + errorType, "[ERROR] Blad odczytu danych z czujnika");
 
-  if(!isnan(pres))
-  {
-    pressCounter+=1;
-    publishMeasurement(topic + "/pressure", "pressure",    pres, 0, " hPa", pressCounter);
-    publishStatus("pressure", "SUCCESS", "");
-  }
-  else
-  {
-    publishStatus("pressure", "ERROR: " + errorType, "[ERROR] Blad odczytu danych z czujnika");
-  }
+  // if(!isnan(hum))
+  // {
+  //   humCounter+=1;
+  //   publishMeasurement(topic + "/humidity", "humidity", hum, 1, " %", humCounter);
+  // }
+  // else
+  // {
+  //   publishStatus("humidity", "ERROR: " + errorType, "[ERROR] Blad odczytu danych z czujnika");
+  // }
+
+  // if(!isnan(pres))
+  // {
+  //   pressCounter+=1;
+  //   publishMeasurement(topic + "/pressure", "pressure",    pres, 0, " hPa", pressCounter);
+  //   publishStatus("pressure", "SUCCESS", "");
+  // }
+  // else
+  // {
+  //   publishStatus("pressure", "ERROR: " + errorType, "[ERROR] Blad odczytu danych z czujnika");
+  // }
   
 }
 
@@ -167,7 +185,6 @@ void setup()
   Serial.begin(115200);
   delay(1000);
   deviceId = generateDeviceIdFromEfuse();
-  // topic = "lab/" + String(MQTT_GROUP) + "/" + deviceId + "/temperature";
   topic = "lab/" + String(MQTT_GROUP) + "/" + deviceId;
   Serial.print("Device ID: ");
   Serial.println(deviceId);
@@ -186,6 +203,7 @@ void loop()
     connectMQTT();
   }
   float temp_raw = get_temperature();
+  float raw_hum = NAN;//get_humidity();
   mqttClient.loop();
   processMeasurement(temp_raw, 0, 0);
   delay(5000);
