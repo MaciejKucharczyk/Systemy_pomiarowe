@@ -4,6 +4,15 @@
 #include <ArduinoJson.h>
 #include "secrets.h"
 #include <map>
+#include <Adafruit_BME280.h>
+#include <Wire.h>
+
+// ESP32 pin definitions
+#define SDA 25
+#define SCL 26 
+
+
+Adafruit_BME280 bme;  // sensor object
 
 WiFiClient espClient;
 PubSubClient mqttClient(espClient);
@@ -37,6 +46,13 @@ float get_temperature_built_in()
   Serial.print(temp_c);
   Serial.println(" C");
   return temp_c;
+}
+
+void get_sensor_data()
+{
+  float temp = bme.readTemperature();
+  float hum = bme.readHumidity();
+  float pressure = bme.readPressure() / 100.0F; // hPa
 }
 
 void connectWiFi()
@@ -163,6 +179,16 @@ void setup()
   topic = "lab/" + String(MQTT_GROUP) + "/" + deviceId;
   Serial.print("Device ID: ");
   Serial.println(deviceId);
+   // I2C config 
+  Wire.begin(SDA, SCL);
+  Wire.setClock(400000); // 400kHz I2C
+
+  bool ok = bme.begin(0x76, &Wire);
+
+  if (!ok) {
+    Serial.println("Could not find a valid BME280 sensor, check wiring!");
+    while (1);
+  }
   connectWiFi();
   connectMQTT();
 }
@@ -177,9 +203,19 @@ void loop()
   {
     connectMQTT();
   }
-  float temp_raw = get_temperature_built_in();
-  Serial.println(temp_raw);
+  // float temp_raw = get_temperature_built_in();
+  // Serial.println(temp_raw);
   mqttClient.loop();
-  processMeasurement(temp_raw, 0, 0);
+  float temp = bme.readTemperature();
+  float hum = bme.readHumidity();
+  float pressure = bme.readPressure() / 100.0F; // hPa
+  Serial.println("Odczytane wartosci: ");
+  Serial.print("Temperatura: ");
+  Serial.print(temp);
+  Serial.print("Wilgotnosc: ");
+  Serial.print(hum);
+  Serial.print("Cisnienie: ");
+  Serial.print(pressure);
+  processMeasurement(temp, hum, pressure);
   delay(5000);
 }
