@@ -1,10 +1,35 @@
+from flask import Flask, jsonify, render_template
+
+import psycopg2
+from psycopg2.extras import RealDictCursor
+
+app = Flask(__name__)
+
+@app.route("/")
+def hello_world():
+    # Przykładowe dane (docelowo będą z bazy)
+    pomiary = [
+        {"uuid": "123", "name": "Sensor 1", "type": "Temp", "is_online": True},
+        {"uuid": "456", "name": "Sensor 2", "type": "Wilgotność", "is_online": False}
+    ]
+    return render_template('index.html', data=pomiary)
+
+""" Prosty health-check, weryfikacja dzialania przechodzenia miedzy endpoitami """
+@app.route("/health", methods=["GET"])
+def health():   
+    return jsonify({"status": "ok"})
+
+""" A tym sprawdzamy wartości pomiarów """
+@app.route("/measurements", methods=["GET"])
+def measurements():   
+    return jsonify({"status": "ok"})
+
 from flask import Flask, jsonify, request
 from db import get_connection
 from models import row_to_dict, SENSOR_DICT_FIELDS
 
 app = Flask(__name__)
 
-<<<<<<< HEAD
 
 def get_results_from_db(query, one_result = False, params = None, fields = None):
 
@@ -28,8 +53,7 @@ def get_results_from_db(query, one_result = False, params = None, fields = None)
 
     return result
 
-=======
->>>>>>> 75511d70fff51e492e456d5b77aae4c9aa7357b0
+
 @app.route("/health", methods=["GET"])
 def health():
     return jsonify({"status": "ok"})

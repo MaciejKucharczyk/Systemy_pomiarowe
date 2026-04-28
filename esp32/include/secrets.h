@@ -1,4 +1,7 @@
 #pragma once
+#define WIFI_SSID "esp_lab"
+#define WIFI_PASSWORD "12345678"
+#define MQTT_HOST "156.17.45.66"
 #define WIFI_SSID "Arek_S25U"
 #define WIFI_PASSWORD "b7stivop"
 #define MQTT_HOST "10.168.37.142"
