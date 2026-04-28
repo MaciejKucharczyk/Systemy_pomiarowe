@@ -17,6 +17,10 @@ Adafruit_BME280 bme;  // sensor object
 WiFiClient espClient;
 PubSubClient mqttClient(espClient);
 
+OneWire oneWire(TEMP_DS18B20_PIN);
+DallasTemperature sensors(&oneWire);
+dht11 DHT11;
+
 String deviceId;
 String topic;
 
@@ -34,14 +38,15 @@ String generateDeviceIdFromEfuse()
   return String(id);
 }
 
-float get_temperature_built_in()
+float get_temperature()
 {
-  float temp_f = temperatureRead();
-  if (isnan(temp_f)) {
-    Serial.print("[ERROR] Brak odczytu temperatury");
+  sensors.requestTemperatures();
+  float temp_c = sensors.getTempCByIndex(0);
+ 
+  if(temp_c == DEVICE_DISCONNECTED_C) {
+     Serial.println("[ERROR] Brak odczytu temperatury");
     return NAN;
   }
-  float temp_c = (temp_f - 32) / 1.8;
   Serial.print("Odczyt temperatury: ");
   Serial.print(temp_c);
   Serial.println(" C");
@@ -107,7 +112,7 @@ void publishMeasurement(String topic, String label, float value, int precision, 
   serializeJson(doc, payload);
   mqttClient.publish(topic.c_str(), payload);
   Serial.print("Publikacja na topic: ");
-  Serial.println(topic);
+  Serial.println(topic.c_str());
   Serial.println(payload);
 }
 
@@ -122,12 +127,12 @@ void publishStatus(String sensor_type, String status, String message)
   doc["code"] = 123;
   doc["timestamp"] = millis();
 
-  String topic = topic + "/status/" + status;
+  String newTopic = topic + "/status/" + sensor_type;
   char payload[256];
   serializeJson(doc, payload);
-  mqttClient.publish(topic.c_str(), payload);
-  Serial.print("Publikacja na topic: ");
-  Serial.println(topic);
+  mqttClient.publish(newTopic.c_str(), payload);
+  Serial.print("Publikacja na topic [status]: ");
+  Serial.println(newTopic);
   Serial.println(payload);
 }
 
@@ -139,34 +144,35 @@ void processMeasurement(float temp, float hum, float pres)
   {
     tempCounter+=1;
     publishMeasurement(topic + "/temperature", "temperature", temp, 2, " C", tempCounter);
-    publishStatus("temperature", "SUCCESS", "");
+    // publishStatus("temperature", "SUCCESS", "");
   }
   else 
   {
-    publishStatus("temperature", "ERROR: " + errorType, "[ERROR] Blad odczytu danych z czujnika");
+    publishStatus("temperature", "error", "[ERROR] Blad odczytu danych z czujnika");
   }
 
-  if(!isnan(hum))
-  {
-    humCounter+=1;
-    publishMeasurement(topic + "/humidity",  "humidity",    hum, 1, " %", humCounter);
-    publishStatus("humidity", "SUCCESS", "");
-  }
-  else
-  {
-    publishStatus("humidity", "ERROR: " + errorType, "[ERROR] Blad odczytu danych z czujnika");
-  }
+  // publishStatus("humidity", "ERROR: " + errorType, "[ERROR] Blad odczytu danych z czujnika");
 
-  if(!isnan(pres))
-  {
-    pressCounter+=1;
-    publishMeasurement(topic + "/pressure", "pressure",    pres, 0, " hPa", pressCounter);
-    publishStatus("pressure", "SUCCESS", "");
-  }
-  else
-  {
-    publishStatus("pressure", "ERROR: " + errorType, "[ERROR] Blad odczytu danych z czujnika");
-  }
+  // if(!isnan(hum))
+  // {
+  //   humCounter+=1;
+  //   publishMeasurement(topic + "/humidity", "humidity", hum, 1, " %", humCounter);
+  // }
+  // else
+  // {
+  //   publishStatus("humidity", "ERROR: " + errorType, "[ERROR] Blad odczytu danych z czujnika");
+  // }
+
+  // if(!isnan(pres))
+  // {
+  //   pressCounter+=1;
+  //   publishMeasurement(topic + "/pressure", "pressure",    pres, 0, " hPa", pressCounter);
+  //   publishStatus("pressure", "SUCCESS", "");
+  // }
+  // else
+  // {
+  //   publishStatus("pressure", "ERROR: " + errorType, "[ERROR] Blad odczytu danych z czujnika");
+  // }
   
 }
 
@@ -175,7 +181,6 @@ void setup()
   Serial.begin(115200);
   delay(1000);
   deviceId = generateDeviceIdFromEfuse();
-  // topic = "lab/" + String(MQTT_GROUP) + "/" + deviceId + "/temperature";
   topic = "lab/" + String(MQTT_GROUP) + "/" + deviceId;
   Serial.print("Device ID: ");
   Serial.println(deviceId);
