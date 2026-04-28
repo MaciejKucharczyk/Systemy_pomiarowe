@@ -129,7 +129,7 @@ void processMeasurement(float temp, float hum, float pres)
   if(!isnan(temp))
   {
     tempCounter+=1;
-    publishMeasurement("lab/g2/esp/temperature", "temperature", temp, 2, " C", tempCounter);
+    publishMeasurement(topic + "/temperature", "temperature", temp, 2, " C", tempCounter);
     // publishStatus("temperature", "SUCCESS", "");
   }
   else 

@@ -24,3 +24,5 @@ USER appuser
 
 # Uruchom aplikację
 CMD ["python", "ingestor.py"]
+
+EXPOSE 1883
