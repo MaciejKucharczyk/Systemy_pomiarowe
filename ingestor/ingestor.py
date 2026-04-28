@@ -135,8 +135,8 @@ def on_message(client, userdata, msg):
         print("Wiadomosc poprawna -> zapis do bazy")
         store_measurement(msg.topic, data)    
     
-    else:
-        print("Wiadomosc niepoprawna -> pomin")
+    if(is_valid(data, STATUS_MSG_FIELDS_RULES)):
+        print("Status message => ", data)
 
 
 mqtt_client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)

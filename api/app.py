@@ -4,6 +4,7 @@ from models import row_to_dict, SENSOR_DICT_FIELDS
 
 app = Flask(__name__)
 
+<<<<<<< HEAD
 
 def get_results_from_db(query, one_result = False, params = None, fields = None):
 
@@ -27,6 +28,8 @@ def get_results_from_db(query, one_result = False, params = None, fields = None)
 
     return result
 
+=======
+>>>>>>> 75511d70fff51e492e456d5b77aae4c9aa7357b0
 @app.route("/health", methods=["GET"])
 def health():
     return jsonify({"status": "ok"})
