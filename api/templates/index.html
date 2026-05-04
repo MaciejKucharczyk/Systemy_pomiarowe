@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block head %}
+    <script>
+        function reload_image(){
+            var image = document.getElementById('output');
+            if(image) {
+                var src = image.src;
+                src = src.split('?')[0] + '?random=' + Math.random();
+                image.setAttribute('src', src);
+            }
+        }
+    </script>
+{% endblock %}
+
+{% block content %}
+    <h1 class="text-center">Status czujników</h1>
+
+    <div class="text-center">
+        <table class="table table-bordered table-striped mt-4">
+            <thead class="table-light">
+                <tr>
+                    <th>ID / UUID</th>
+                    <th>Nazwa</th>
+                    <th>Typ</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in data %}
+                <tr>
+                    <td>{{ row.uuid }}</td>
+                    <td>{{ row.name }}</td>
+                    <td>{{ row.type }}</td>
+                    <td>
+                        <span class="badge {{ 'bg-success' if row.is_online else 'bg-danger' }}">
+                            {{ "Online" if row.is_online else "Offline" }}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <form action="{{ url_for('measurements') }}" method="GET">
+            <button type="submit" class="btn btn-primary">
+                Pomiary
+            </button>
+        </form>
+        
+    </div>
+
+{% endblock %}
