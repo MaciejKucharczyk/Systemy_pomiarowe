@@ -13,6 +13,7 @@ SENSOR_DICT_FIELDS = [
     "uuid",
     "name",
     "type",
+    "sensor",
     "is_online"
 ]
 
