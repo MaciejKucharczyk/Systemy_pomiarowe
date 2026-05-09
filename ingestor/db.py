@@ -6,7 +6,7 @@ def get_connection():
         host=DB_HOST,
         dbname=DB_NAME,
         user=DB_USER,
-        password=DB_PASSWORD
+        password=DB_PASSWORD,
     )
 
 print(get_connection())

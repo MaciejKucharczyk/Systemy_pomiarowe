@@ -16,10 +16,13 @@
 		<Item Name="Custom REST GET.vi" Type="VI" URL="../Custom REST GET.vi"/>
 		<Item Name="DashboardHeader.ctl" Type="VI" URL="../DashboardHeader.ctl"/>
 		<Item Name="DashboardHeader.vi" Type="VI" URL="../DashboardHeader.vi"/>
+		<Item Name="GetDevices.vi" Type="VI" URL="../GetDevices.vi"/>
+		<Item Name="GetLatestMeasurement.vi" Type="VI" URL="../GetLatestMeasurement.vi"/>
 		<Item Name="MainDashboard.vi" Type="VI" URL="../MainDashboard.vi"/>
 		<Item Name="MeasurementCluster.ctl" Type="VI" URL="../MeasurementCluster.ctl"/>
 		<Item Name="SensorCluster.ctl" Type="VI" URL="../SensorCluster.ctl"/>
 		<Item Name="TimestampMsToString.vi" Type="VI" URL="../TimestampMsToString.vi"/>
+		<Item Name="TranslateError.vi" Type="VI" URL="../TranslateError.vi"/>
 		<Item Name="Dependencies" Type="Dependencies"/>
 		<Item Name="Build Specifications" Type="Build"/>
 	</Item>

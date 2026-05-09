@@ -1,4 +1,4 @@
-FROM postgres:18-alpine
+FROM postgres:17-alpine
 
 ENV POSTGRES_USER=admin
 ENV POSTGRES_PASSWORD=admin_pass1234

@@ -1,24 +1,4 @@
 services:
-  flask:
-    build:
-      context: ./api
-      dockerfile: Dockerfile
-    ports:
-      - 5001:5001
-    # dodanie wolumenu
-    volumes:
-      - ./api:/app
-    image: api:v1
-    container_name: api
-  
-  broker:
-    build:
-      context: ./broker
-      dockerfile: Dockerfile
-    ports: 
-      - 1883:1883
-    image: broker:v1
-    container_name: broker
   
   database:
     build:
@@ -28,12 +8,54 @@ services:
       - 5432:5432
     image: database:v1
     container_name: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    environment:
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=admin_pass1234
+      - POSTGRES_DB=abcd_db
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  flask:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    ports:
+      - 5010:5010
+    # dodanie wolumenu
+    volumes:
+      - ./api:/app
+    image: api:v1
+    container_name: api
+    depends_on:
+      - database
+    environment:
+      - DB_HOST=database
+
+  broker:
+    build:
+      context: ./broker
+      dockerfile: Dockerfile
+    ports: 
+      - 1883:1883
+    image: broker:v1
+    container_name: broker
 
   # ingestor:
   #   build:
   #     context: ./ingestor
   #     dockerfile: Dockerfile
-  #   ports:
-  #     - 1883:1883
   #   image: ingestor:v1
   #   container_name: ingestor
+  #   depends_on:
+  #     database:
+  #       condition: service_healthy
+  #   environment:
+  #     - DB_HOST=database
+
+volumes:
+  db_data:

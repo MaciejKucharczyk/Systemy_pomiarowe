@@ -25,4 +25,4 @@ USER appuser
 # Uruchom aplikację
 CMD ["python", "app.py"]
 
-EXPOSE 5001
+EXPOSE 5010
