@@ -17,10 +17,6 @@ Adafruit_BME280 bme;  // sensor object
 WiFiClient espClient;
 PubSubClient mqttClient(espClient);
 
-OneWire oneWire(TEMP_DS18B20_PIN);
-DallasTemperature sensors(&oneWire);
-dht11 DHT11;
-
 String deviceId;
 String topic;
 
@@ -38,22 +34,7 @@ String generateDeviceIdFromEfuse()
   return String(id);
 }
 
-float get_temperature()
-{
-  sensors.requestTemperatures();
-  float temp_c = sensors.getTempCByIndex(0);
- 
-  if(temp_c == DEVICE_DISCONNECTED_C) {
-     Serial.println("[ERROR] Brak odczytu temperatury");
-    return NAN;
-  }
-  Serial.print("Odczyt temperatury: ");
-  Serial.print(temp_c);
-  Serial.println(" C");
-  return temp_c;
-}
-
-void get_sensor_data()
+void get_bme_sensor_data()
 {
   float temp = bme.readTemperature();
   float hum = bme.readHumidity();
@@ -144,35 +125,34 @@ void processMeasurement(float temp, float hum, float pres)
   {
     tempCounter+=1;
     publishMeasurement(topic + "/temperature", "temperature", temp, 2, " C", tempCounter);
-    // publishStatus("temperature", "SUCCESS", "");
+    publishStatus("temperature", "SUCCESS", "");
   }
   else 
   {
     publishStatus("temperature", "error", "[ERROR] Blad odczytu danych z czujnika");
   }
 
-  // publishStatus("humidity", "ERROR: " + errorType, "[ERROR] Blad odczytu danych z czujnika");
+  if(!isnan(hum))
+  {
+    humCounter+=1;
+    publishMeasurement(topic + "/humidity", "humidity", hum, 1, " %", humCounter);
+    publishStatus("humidity", "SUCCESS", "");
+  }
+  else
+  {
+    publishStatus("humidity", "ERROR: " + errorType, "[ERROR] Blad odczytu danych z czujnika");
+  }
 
-  // if(!isnan(hum))
-  // {
-  //   humCounter+=1;
-  //   publishMeasurement(topic + "/humidity", "humidity", hum, 1, " %", humCounter);
-  // }
-  // else
-  // {
-  //   publishStatus("humidity", "ERROR: " + errorType, "[ERROR] Blad odczytu danych z czujnika");
-  // }
-
-  // if(!isnan(pres))
-  // {
-  //   pressCounter+=1;
-  //   publishMeasurement(topic + "/pressure", "pressure",    pres, 0, " hPa", pressCounter);
-  //   publishStatus("pressure", "SUCCESS", "");
-  // }
-  // else
-  // {
-  //   publishStatus("pressure", "ERROR: " + errorType, "[ERROR] Blad odczytu danych z czujnika");
-  // }
+  if(!isnan(pres))
+  {
+    pressCounter+=1;
+    publishMeasurement(topic + "/pressure", "pressure",    pres, 0, " hPa", pressCounter);
+    publishStatus("pressure", "SUCCESS", "");
+  }
+  else
+  {
+    publishStatus("pressure", "ERROR: " + errorType, "[ERROR] Blad odczytu danych z czujnika");
+  }
   
 }
 
