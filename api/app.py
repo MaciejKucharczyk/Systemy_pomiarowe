@@ -1,9 +1,19 @@
 from flask import Flask, jsonify, render_template
 
-import psycopg2
-from psycopg2.extras import RealDictCursor
+
+from flask import Flask, jsonify, request
+from db import get_connection
+from models import row_to_dict, SENSOR_DICT_FIELDS
+import math
 
 app = Flask(__name__)
+
+state = {
+    "step": 0,
+    "amplitude": 10.0,
+    "frequency": 0.1,  # Jak gęsto próbkowany jest sinus
+    "offset": 20.0     # Np. bazowa temperatura
+}
 
 @app.route("/")
 def hello_world():
@@ -14,21 +24,17 @@ def hello_world():
     ]
     return render_template('index.html', data=pomiary)
 
-""" Prosty health-check, weryfikacja dzialania przechodzenia miedzy endpoitami """
-@app.route("/health", methods=["GET"])
-def health():   
-    return jsonify({"status": "ok"})
+# """ Prosty health-check, weryfikacja dzialania przechodzenia miedzy endpoitami """
+# @app.route("/health", methods=["GET"])
+# def health():   
+#     return jsonify({"status": "ok"})
 
-""" A tym sprawdzamy wartości pomiarów """
-@app.route("/measurements", methods=["GET"])
-def measurements():   
-    return jsonify({"status": "ok"})
+# """ A tym sprawdzamy wartości pomiarów """
+# @app.route("/measurements", methods=["GET"])
+# def measurements():   
+#     return jsonify({"status": "ok"})
 
-from flask import Flask, jsonify, request
-from db import get_connection
-from models import row_to_dict, SENSOR_DICT_FIELDS
-
-app = Flask(__name__)
+# app = Flask(__name__)
 
 def get_results_from_db(query, one_result = False, params = None, fields = None):
 
@@ -84,7 +90,15 @@ def get_latest_measurement():
     if row is None:
         return jsonify({"message": "Brak danych"}), 404
     
-    return jsonify(row_to_dict(row))
+    val = state["offset"] + state["amplitude"] * math.sin(state["step"] * state["frequency"])
+    
+    # Inkrementujemy krok dla kolejnego zapytania
+    state["step"] += 1
+
+    data = row_to_dict(row)
+    data["value"] = val
+
+    return jsonify(data)
 
 @app.route("/measurements/history", methods=["GET"])
 def get_measurements_history():

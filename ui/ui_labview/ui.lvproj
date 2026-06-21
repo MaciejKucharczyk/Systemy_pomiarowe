@@ -18,8 +18,10 @@
 		<Item Name="DashboardHeader.vi" Type="VI" URL="../DashboardHeader.vi"/>
 		<Item Name="GetDevices.vi" Type="VI" URL="../GetDevices.vi"/>
 		<Item Name="GetLatestMeasurement.vi" Type="VI" URL="../GetLatestMeasurement.vi"/>
+		<Item Name="GetMeasurementsHistory.vi" Type="VI" URL="../GetMeasurementsHistory.vi"/>
 		<Item Name="MainDashboard.vi" Type="VI" URL="../MainDashboard.vi"/>
 		<Item Name="MeasurementCluster.ctl" Type="VI" URL="../MeasurementCluster.ctl"/>
+		<Item Name="ParseMeasurementsHistory.vi" Type="VI" URL="../ParseMeasurementsHistory.vi"/>
 		<Item Name="SensorCluster.ctl" Type="VI" URL="../SensorCluster.ctl"/>
 		<Item Name="TimestampMsToString.vi" Type="VI" URL="../TimestampMsToString.vi"/>
 		<Item Name="TranslateError.vi" Type="VI" URL="../TranslateError.vi"/>

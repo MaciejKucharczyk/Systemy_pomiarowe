@@ -1,5 +1,5 @@
 import psycopg2 
-from secrets import DB_HOST, DB_NAME, DB_PASSWORD, DB_USER
+from db_secrets import DB_HOST, DB_NAME, DB_PASSWORD, DB_USER
 
 def get_connection():
     return psycopg2.connect(
