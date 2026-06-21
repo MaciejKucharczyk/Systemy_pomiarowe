@@ -1,7 +1,4 @@
-from flask import Flask, jsonify, render_template
-
-
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, render_template, request
 from db import get_connection
 from models import row_to_dict, SENSOR_DICT_FIELDS
 import math
@@ -36,6 +33,7 @@ def hello_world():
 
 # app = Flask(__name__)
 
+
 def get_results_from_db(query, one_result = False, params = None, fields = None):
 
     if params is None:
@@ -57,6 +55,25 @@ def get_results_from_db(query, one_result = False, params = None, fields = None)
     conn.close()
 
     return result
+
+@app.route("/")
+def hello_world():
+    # Przykładowe dane (docelowo będą z bazy)
+    pomiary = [
+        {"uuid": "123", "name": "Sensor 1", "type": "Temp", "is_online": True},
+        {"uuid": "456", "name": "Sensor 2", "type": "Wilgotność", "is_online": False}
+    ]
+    # rows = get_results_from_db(
+    #     """
+    #     SELECT id, group_id, device_id, sensor, value, unit, ts_ms, seq, topic
+    #     FROM measurements
+    #     ORDER BY id DESC
+    #     LIMIT 20
+    #     """
+    # )
+
+    # result = [row_to_dict(row) for row in rows]
+    return render_template('index.html', data=pomiary)
 
 @app.route("/health", methods=["GET"])
 def health():
@@ -99,6 +116,23 @@ def get_latest_measurement():
     data["value"] = val
 
     return jsonify(data)
+
+@app.route('/measurements/fake-latest', methods=['GET'])
+def get_fake_latest_measurement():
+    # Pobieramy próbkę
+    val = state["offset"] + state["amplitude"] * math.sin(state["step"] * state["frequency"])
+    
+    # Inkrementujemy krok dla kolejnego zapytania
+    state["step"] += 1
+    
+    return jsonify({
+        "device_id": "esp-gt3l13324",
+        "sensor": "temperature",
+        "value": round(val, 3),
+        "unit": "C",
+        "ts_ms": 2345633663,
+        "seq": state["step"]
+    })
 
 @app.route("/measurements/history", methods=["GET"])
 def get_measurements_history():

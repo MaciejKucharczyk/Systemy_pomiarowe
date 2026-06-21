@@ -45,17 +45,18 @@ services:
     image: broker:v1
     container_name: broker
 
-  # ingestor:
-  #   build:
-  #     context: ./ingestor
-  #     dockerfile: Dockerfile
-  #   image: ingestor:v1
-  #   container_name: ingestor
-  #   depends_on:
-  #     database:
-  #       condition: service_healthy
-  #   environment:
-  #     - DB_HOST=database
+  ingestor:
+    build:
+      context: ./ingestor
+      dockerfile: Dockerfile
+    image: ingestor:v1
+    container_name: ingestor
+    depends_on:
+      - database
+      - broker
+    environment:
+      - DB_HOST=database
+      - MQTT_HOST=broker
 
 volumes:
   db_data:

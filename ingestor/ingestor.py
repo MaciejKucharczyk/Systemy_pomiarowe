@@ -3,7 +3,6 @@ import json
 from db import get_connection
 from config import MQTT_HOST, MQTT_PORT
 
-
 MEASURE_MSG_FIELDS_RULES = {
     "schema_version": {
         "type": str,
@@ -66,6 +65,7 @@ STATUS_MSG_FIELDS_RULES = {
         "optional": True
     },
 }
+
 
 
 def store_measurement(topic, data: dict):
