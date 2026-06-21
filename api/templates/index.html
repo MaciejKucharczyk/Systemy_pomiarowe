@@ -14,16 +14,17 @@
 {% endblock %}
 
 {% block content %}
-    <h1 class="text-center">Status czujników</h1>
+    <h1 class="text-center">Dostępne czujniki</h1>
 
     <div class="text-center">
-        <table class="table table-bordered table-striped mt-4">
+        <table class="table table-bordered table-striped mt-4 align-middle">
             <thead class="table-light">
                 <tr>
                     <th>ID / UUID</th>
                     <th>Nazwa</th>
                     <th>Typ</th>
                     <th>Status</th>
+                    <th></th>
                 </tr>
             </thead>
             <tbody>
@@ -37,15 +38,17 @@
                             {{ "Online" if row.is_online else "Offline" }}
                         </span>
                     </td>
+                    <td>
+                        <form action="{{ url_for('view_measurements', device_id=row.uuid) }}" method="GET">
+                            <button type="submit" class="btn btn-outline-primary btn-sm mt-0">
+                                Pomiary
+                            </button>
+                        </form>
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
-        <form action="{{ url_for('get_measurements') }}" method="GET">
-            <button type="submit" class="btn btn-primary">
-                Pomiary
-            </button>
-        </form>
         
     </div>
 

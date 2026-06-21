@@ -1,7 +1,9 @@
 from flask import Flask, jsonify, render_template, request
 from db import get_connection
 from models import row_to_dict, SENSOR_DICT_FIELDS
+import datetime
 import math
+import json
 
 app = Flask(__name__)
 
@@ -12,29 +14,19 @@ state = {
     "offset": 20.0     # Np. bazowa temperatura
 }
 
-@app.route("/")
-def hello_world():
-    # Przykładowe dane (docelowo będą z bazy)
-    pomiary = [
-        {"uuid": "123", "name": "Sensor 1", "type": "Temp", "is_online": True},
-        {"uuid": "456", "name": "Sensor 2", "type": "Wilgotność", "is_online": False}
-    ]
-    return render_template('index.html', data=pomiary)
 
-# """ Prosty health-check, weryfikacja dzialania przechodzenia miedzy endpoitami """
-# @app.route("/health", methods=["GET"])
-# def health():   
-#     return jsonify({"status": "ok"})
-
-# """ A tym sprawdzamy wartości pomiarów """
-# @app.route("/measurements", methods=["GET"])
-# def measurements():   
-#     return jsonify({"status": "ok"})
-
-# app = Flask(__name__)
+def fetch_sensors():
+    return fetch_results_from_db(
+        """
+        SELECT uuid, name, type, sensor, is_online
+        FROM sensor
+        WHERE 1=1
+        """,
+        False
+    )
 
 
-def get_results_from_db(query, one_result = False, params = None, fields = None):
+def fetch_results_from_db(query, one_result = False, params = None, fields = None):
 
     if params is None:
         params = []
@@ -56,34 +48,56 @@ def get_results_from_db(query, one_result = False, params = None, fields = None)
 
     return result
 
-@app.route("/")
-def hello_world():
-    # Przykładowe dane (docelowo będą z bazy)
-    pomiary = [
-        {"uuid": "123", "name": "Sensor 1", "type": "Temp", "is_online": True},
-        {"uuid": "456", "name": "Sensor 2", "type": "Wilgotność", "is_online": False}
-    ]
-    # rows = get_results_from_db(
-    #     """
-    #     SELECT id, group_id, device_id, sensor, value, unit, ts_ms, seq, topic
-    #     FROM measurements
-    #     ORDER BY id DESC
-    #     LIMIT 20
-    #     """
-    # )
 
-    # result = [row_to_dict(row) for row in rows]
-    return render_template('index.html', data=pomiary)
+@app.route("/")
+def view_sensors():
+    results = [row_to_dict(row, SENSOR_DICT_FIELDS) for row in fetch_sensors()]
+    return render_template('index.html', data=results)
+
+@app.route("/<device_id>/measurements/")
+def view_measurements(device_id: str):
+    limit = request.args.get("limit", 20, type=int)
+
+    measurements = fetch_results_from_db(
+        """
+        SELECT id, group_id, device_id, sensor, value, unit, ts_ms, seq, topic, received_at
+        FROM measurements WHERE device_id = %s
+        ORDER BY id DESC
+        LIMIT %s
+        """,
+        False,
+        [device_id, limit]
+    )
+    sensor = row_to_dict(
+        fetch_results_from_db(
+            """
+            SELECT *
+            FROM sensor
+            WHERE uuid = %s
+            """, True, [device_id]
+        ),
+        SENSOR_DICT_FIELDS
+    )
+    results = [row_to_dict(row) for row in measurements]
+    
+    chart_data = {
+        'labels': [r.get('seq') for r in results],
+        'values': [r.get('value') for r in results],
+        'y_label': f"{sensor.get('type')} ({results[0].get('unit')})"
+    }
+    return render_template('measurements.html', data=results, sensor=sensor, chart_data=json.dumps(chart_data))
+
 
 @app.route("/health", methods=["GET"])
 def health():
     return jsonify({"status": "ok"})
 
+
 @app.route("/measurements", methods=["GET"])
 def get_measurements():
-    rows = get_results_from_db(
+    rows = fetch_results_from_db(
         """
-        SELECT id, group_id, device_id, sensor, value, unit, ts_ms, seq, topic
+        SELECT id, group_id, device_id, sensor, value, unit, ts_ms, seq, topic, received_at
         FROM measurements
         ORDER BY id DESC
         LIMIT 20
@@ -95,7 +109,7 @@ def get_measurements():
 
 @app.route("/measurements/latest", methods=["GET"])
 def get_latest_measurement():
-    row = get_results_from_db(
+    row = fetch_results_from_db(
         """
         SELECT id, group_id, device_id, sensor, value, unit, ts_ms, seq, topic
         FROM measurements
@@ -119,10 +133,8 @@ def get_latest_measurement():
 
 @app.route('/measurements/fake-latest', methods=['GET'])
 def get_fake_latest_measurement():
-    # Pobieramy próbkę
     val = state["offset"] + state["amplitude"] * math.sin(state["step"] * state["frequency"])
     
-    # Inkrementujemy krok dla kolejnego zapytania
     state["step"] += 1
     
     return jsonify({
@@ -159,24 +171,15 @@ def get_measurements_history():
     params.append(limit)
     query += " ORDER BY id DESC LIMIT %s"
 
-    rows = get_results_from_db(query, False, params)
+    rows = fetch_results_from_db(query, False, params)
 
     result = [row_to_dict(row) for row in rows]
     return jsonify(result)
 
 @app.route("/sensors", methods=["GET"])
 def get_sensors():
-    rows = get_results_from_db(
-        """
-        SELECT uuid, name, type, sensor, is_online
-        FROM sensor
-        WHERE 1=1
-        """,
-        False
-    )
-
-    result = [row_to_dict(row, SENSOR_DICT_FIELDS) for row in rows]
-    return jsonify(result)
+    result = fetch_sensors()
+    return jsonify([row_to_dict(row, SENSOR_DICT_FIELDS) for row in result])
 
 
 if __name__ == "__main__":

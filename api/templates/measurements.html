@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+
+{% block head %}
+    <script>
+        function reload_image(){
+            var image = document.getElementById('output');
+            if(image) {
+                var src = image.src;
+                src = src.split('?')[0] + '?random=' + Math.random();
+                image.setAttribute('src', src);
+            }
+        }
+    </script>
+{% endblock %}
+
+{% block content %}
+    <h1 class="text-center mb-3">Pomiary urządzenia {{ sensor.name }}</h1>
+
+    <nav class="navbar navbar-light bg-light p-3 border border-light-subtle">
+        <div class="container-fluid d-flex justify-content-between align-items-center">
+            <form 
+                action="{{ url_for('view_measurements', device_id=sensor.uuid) }}" 
+                method="GET"
+                class="d-flex gap-2 align-items-center"
+            >
+
+                <div class="d-flex align-items-center gap-2">
+                    <label>Limit</label>
+                    <select class="form-select" aria-label="Wybierz limit" name="limit">
+                        {% for i in range(1, 6) %}
+                        <option 
+                            value="{{ i*10 }}" 
+                            {% if request.args.get('limit', 10) | int == i*10 %}selected{% endif %}
+                        >{{ i*10 }}</option>
+                        {%endfor %}
+                    </select>
+                </div>
+
+                <button type="submit" class="btn btn-primary m-0">
+                    Aktualizuj
+                </button>
+            </form>
+        </div>
+    </nav>
+
+    <div class="bg-light p-3 border border-light-subtle w-100" style="height: 50vh">
+        <canvas id="chart"></canvas>
+    </div>
+
+    <!-- <table class="table table-bordered table-striped mt-4">
+        <thead class="table-light">
+            <tr>
+                <th>Seq</th>
+                <th>ID Grupy</th>
+                <th>Sensor</th>
+                <th>Wartość</th>
+                <th>Jednostka</th>
+                <th>Data pomiaru</th>
+                <th>Data zapisu</th>
+            </tr>
+        </thead>
+    </table> -->
+    <div class="text-center mt-4" style="overflow-y: overlay; max-height: 30vh;">
+        <table class="table table-bordered table-striped">
+            <thead class="table-light sticky-top">
+                <tr>
+                    <th>Seq</th>
+                    <th>ID Grupy</th>
+                    <th>Sensor</th>
+                    <th>Wartość</th>
+                    <th>Jednostka</th>
+                    <th>Data pomiaru</th>
+                    <th>Data zapisu</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in data %}
+                <tr>
+                    <td>{{ row.seq }}</td>
+                    <td>{{ row.group_id }}</td>
+                    <td>{{ row.sensor }}</td>
+                    <td>{{ row.value }}</td>
+                    <td>{{ row.unit }}</td>
+                    <td>{{ row.ts_ms }}</td>
+                    <td>{{ row.received_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <!-- <form action="{{ url_for('get_measurements') }}" method="GET">
+            <button type="submit" class="btn btn-primary">
+                Pomiary
+            </button>
+        </form> -->
+        
+    </div>
+
+    <input type="hidden" value="{{ chart_data }}" id="chartData" />
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const ctx = document.getElementById("chart").getContext("2d");
+    const chartJson = document.getElementById("chartData").value;
+    const chartData = JSON.parse(chartJson);
+
+    const {labels, values, y_label} = chartData;    
+
+    const chart = new Chart(ctx, {
+        type: 'line', // Typ wykresu: line, bar, pie, doughnut, radar itp.
+        data: {
+            labels: labels.reverse(), // Oś X (np. Twoje timestampy)
+            datasets: [{
+                label: y_label,
+                data: values.reverse(), // Oś Y (Wartości pomiarów)
+                borderColor: 'rgb(255, 99, 132)',
+                backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                tension: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                }
+            },
+            scales: {
+                x: {
+                    title: {
+                        display: true,          
+                        text: 'Czas pomiaru',    
+                        color: '#111',
+                        font: {
+                            size: 14,
+                            weight: 'bold'
+                        }
+                    },
+                    grid: {
+                        display: true
+                    }
+                },
+                y: {
+                    title: {
+                        display: true,
+                        text: y_label.charAt(0).toUpperCase() + y_label.slice(1),
+                        color: '#111',
+                        font: {
+                            size: 14,
+                            weight: 'bold'
+                        }
+                    },
+                    grid: {
+                        color: '#e5e5e5'
+                    },
+                    suggestedMin: Math.max(values) + 1,
+                    suggestedMax: Math.min(values) - 1
+                }
+            }
+        }
+    });
+
+</script>
+{% endblock %}

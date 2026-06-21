@@ -66,6 +66,31 @@ STATUS_MSG_FIELDS_RULES = {
     },
 }
 
+NEW_DEVICE_MSG_FIELDS_RULES = {
+    "schema_version": {
+        "type": str,
+        "min_len": 1
+    },
+    "device_id": {
+        "type": str,
+        "min_len": 1
+    },
+    "sensor_type": {
+        "type": str,
+        "min_len": 1
+    },
+    "sensor": {
+        "type": str,
+        "min_len": 1
+    },
+    "api_details": {
+        "type": dict
+    },
+    "timestamp": {
+        "type": int,
+        "min": 0
+    },
+}
 
 
 def store_measurement(topic, data: dict):
@@ -85,6 +110,27 @@ def store_measurement(topic, data: dict):
                     data.get("timestamp"),
                     data.get("message_seq"),
                     topic
+                ))
+    conn.commit()
+    cur.close()
+    conn.close()
+
+
+def store_new_sensor(data: dict):
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute("""
+        INSERT INTO sensor (uuid, name, type, sensor, apidetails, is_online)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    data.get("device_id"),
+                    data.get("name"),
+                    data.get("sensor_type"),
+                    data.get("sensor"),
+                    json.dumps(data.get("api_details")),
+                    True
                 ))
     conn.commit()
     cur.close()
@@ -129,13 +175,16 @@ def on_connect(client, userdata, flags, reason_code, props):
     client.subscribe("lab/#")
 
 def on_message(client, userdata, msg):
-    data = json.loads(msg.payload.decode())
-   
-    if(is_valid(data, MEASURE_MSG_FIELDS_RULES)):
+    data = json.loads(msg.payload.decode())   
+
+    if(is_valid(data, NEW_DEVICE_MSG_FIELDS_RULES)):
+        store_new_sensor(data);
+
+    elif(is_valid(data, MEASURE_MSG_FIELDS_RULES)):
         print("Wiadomosc poprawna -> zapis do bazy")
         store_measurement(msg.topic, data)    
     
-    if(is_valid(data, STATUS_MSG_FIELDS_RULES)):
+    elif(is_valid(data, STATUS_MSG_FIELDS_RULES)):
         print("Status message => ", data)
 
 

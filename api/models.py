@@ -7,7 +7,8 @@ MEASUREMENT_DICT_FIELDS = [
     "unit",
     "ts_ms",
     "seq",
-    "topic"
+    "topic",
+    "received_at"
 ]
 SENSOR_DICT_FIELDS = [
     "uuid",
