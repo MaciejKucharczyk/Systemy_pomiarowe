@@ -19,6 +19,8 @@ services:
       - POSTGRES_DB=abcd_db
     volumes:
       - db_data:/var/lib/postgresql/data
+    networks:
+      - backend
 
   flask:
     build:
@@ -35,15 +37,19 @@ services:
       - database
     environment:
       - DB_HOST=database
+    networks:
+      - backend
 
   broker:
     build:
       context: ./broker
       dockerfile: Dockerfile
     ports: 
-      - 1883:1883
+      - 8883:8883
     image: broker:v1
     container_name: broker
+    networks:
+      - backend
 
   ingestor:
     build:
@@ -57,6 +63,12 @@ services:
     environment:
       - DB_HOST=database
       - MQTT_HOST=broker
+    networks:
+      - backend
 
 volumes:
   db_data:
+
+networks:
+  backend:
+    driver: bridge
