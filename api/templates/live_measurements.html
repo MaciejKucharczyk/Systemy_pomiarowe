@@ -1,38 +1,25 @@
 {% extends "base.html" %}
 
-{% block head %}
-    <script>
-        function reload_image(){
-            var image = document.getElementById('output');
-            if(image) {
-                var src = image.src;
-                src = src.split('?')[0] + '?random=' + Math.random();
-                image.setAttribute('src', src);
-            }
-        }
-    </script>
-{% endblock %}
-
 {% block content %}
-    <h2 class="text-center mb-3">Pomiary urządzenia: {{ sensor.name }}</h2>
+    <h2 class="text-center mb-3">Pomiary live</h2>
 
-    {% if data | length > 0 %}
+    {% if sensors | length > 0 %}
     <nav class="navbar navbar-light bg-light p-3 border border-light-subtle">
         <div class="container-fluid d-flex justify-content-between align-items-center">
             <form 
-                action="{{ url_for('view_measurements', device_id=sensor.uuid) }}" 
+                action="{{ url_for('view_live_measurements') }}" 
                 method="GET"
                 class="d-flex gap-2 align-items-center"
             >
 
                 <div class="d-flex align-items-center gap-2">
-                    <label>Limit</label>
-                    <select class="form-select" aria-label="Wybierz limit" name="limit">
-                        {% for i in [1,2,3,4,5,10,20,30,40,50] %}
+                    <label>Sensor</label>
+                    <select class="form-select" aria-label="Wybierz limit" name="device_id">
+                        {% for s in sensors %}
                         <option 
-                            value="{{ i*10 }}" 
-                            {% if request.args.get('limit', 10) | int == i*10 %}selected{% endif %}
-                        >{{ i*10 }}</option>
+                            value="{{ s.uuid }}" 
+                            {% if device_id == s.uuid %}selected{% endif %}
+                        >{{ s.name }}</option>
                         {%endfor %}
                     </select>
                 </div>
@@ -41,10 +28,6 @@
                     Aktualizuj
                 </button>
             </form>
-            
-            <a class="btn btn-danger m-0" href="{{ url_for('view_live_measurements', device_id=sensor.uuid) }}" >
-                Live
-            </a>
         </div>
     </nav>
 
@@ -61,48 +44,37 @@
                     <th>Sensor</th>
                     <th>Wartość</th>
                     <th>Jednostka</th>
-                    <th>Data pomiaru</th>
                     <th>Data zapisu</th>
+                    <th>Data pomiaru</th>
                 </tr>
             </thead>
-            <tbody>
-                {% for row in data %}
-                <tr>
-                    <td>{{ row.seq }}</td>
-                    <td>{{ row.group_id }}</td>
-                    <td>{{ row.sensor }}</td>
-                    <td>{{ row.value }}</td>
-                    <td>{{ row.unit }}</td>
-                    <td>{{ row.ts_ms }}</td>
-                    <td>{{ row.received_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
-                </tr>
-                {% endfor %}
+            <tbody id="tableContent">
+                
             </tbody>
         </table>
+        
     </div>
 
-    <input type="hidden" value="{{ chart_data }}" id="chartData" />
+    <input type="hidden" value="{{ device_id }}" id="deviceId" />
     {% else %}
-        <p class="text-center text fs-3">Brak pomiarów</p>
+        <p class="text-center">Brak sensorów</p>
     {% endif %}
 {% endblock %}
 
 {% block scripts %}
-{% if data | length > 0 %}
+{% if sensors | length > 0 %}
 <script>
-    const ctx = document.getElementById("chart").getContext("2d");
-    const chartJson = document.getElementById("chartData").value;
-    const chartData = JSON.parse(chartJson);
+    const deviceId = document.getElementById("deviceId").value;
+    const source = new EventSource(`/stream/device/${deviceId}`);
 
-    const {labels, values, y_label} = chartData;    
+    const ctx = document.getElementById("chart").getContext("2d");
 
     const chart = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: labels,
             datasets: [{
-                label: y_label,
-                data: values,
+                label: "Dane",
+                data: [],
                 borderColor: 'rgb(255, 99, 132)',
                 backgroundColor: 'rgba(255, 99, 132, 0.2)',
                 tension: 0
@@ -111,6 +83,7 @@
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            animation: false,
             plugins: {
                 legend: {
                     position: 'top',
@@ -118,6 +91,17 @@
             },
             scales: {
                 x: {
+                    type: 'time',
+                    ticks: {
+                        autoSkip: true,
+                        maxTicksLimit: 10,
+                    },
+                    time: {
+                        unit: 'second',
+                        displayFormats: {
+                            second: 'd-M-y HH:mm:ss'
+                        },
+                    },
                     title: {
                         display: true,          
                         text: 'Czas pomiaru',    
@@ -130,22 +114,11 @@
                     grid: {
                         display: true
                     },
-                    type: 'time',
-                    ticks: {
-                        autoSkip: true,
-                        maxTicksLimit: 12,
-                    },
-                    time: {
-                        unit: 'second',
-                        displayFormats: {
-                            second: 'd-M-y HH:mm:ss'
-                        },
-                    },
                 },
                 y: {
                     title: {
                         display: true,
-                        text: y_label.charAt(0).toUpperCase() + y_label.slice(1),
+                        text: "Dane",
                         color: '#111',
                         font: {
                             size: 14,
@@ -155,12 +128,56 @@
                     grid: {
                         color: '#e5e5e5'
                     },
-                    suggestedMin: Math.max(values) + 1,
-                    suggestedMax: Math.min(values) - 1
                 }
             }
         }
     });
+    let labelConfigured = false;
+
+    const table = $("#tableContent");
+    const pushData = (data) => {
+        chart.data.datasets[0].data.push({
+            x: data.timestamp,
+            y: data.value
+        });
+
+        if (chart.data.datasets[0].data.length > 20) {
+            chart.data.datasets[0].data.shift(); 
+        }
+
+        if(!labelConfigured) {
+            const label = data.sensor.charAt(0).toUpperCase() + data.sensor.slice(1);
+            chart.data.datasets[0].label = `${label} (${data.unit})`;
+            chart.options.scales.y.title.text = `${label} (${data.unit})`;
+            labelConfigured = true;
+        }
+        chart.update();        
+
+        const row = $("<tr></tr>");
+        row.append(`<td>${data.seq}</td>`);
+        row.append(`<td>${data.group_id}</td>`);
+        row.append(`<td>${data.sensor}</td>`);
+        row.append(`<td>${data.value}</td>`);
+        row.append(`<td>${data.unit}</td>`);
+        row.append(`<td>${data.ts_ms}</td>`);
+        row.append(`<td>${data.received_at}</td>`);
+
+        table.prepend(row);
+    }
+
+    source.onopen = (event) => {
+        console.log("Connected");
+    }
+
+    source.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+
+        pushData(data);
+    }
+
+    source.onerror = (event) => {
+        console.log("Error");
+    }
 
 </script>
 {% endif %}

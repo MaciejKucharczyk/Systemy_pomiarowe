@@ -6,3 +6,5 @@ ingestor/__pycache__/*
 ingestor/test.py
 esp32/include/secrets.h
 api/db_secrets.py
+fake_esp.py
+fake_esp2.py

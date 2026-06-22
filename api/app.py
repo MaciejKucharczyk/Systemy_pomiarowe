@@ -1,9 +1,9 @@
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request, Response
 from db import get_connection
 from models import row_to_dict, SENSOR_DICT_FIELDS
-import datetime
 import math
 import json
+import time
 
 app = Flask(__name__)
 
@@ -81,11 +81,32 @@ def view_measurements(device_id: str):
     results = [row_to_dict(row) for row in measurements]
     
     chart_data = {
-        'labels': [r.get('seq') for r in results],
-        'values': [r.get('value') for r in results],
-        'y_label': f"{sensor.get('type')} ({results[0].get('unit')})"
+        'labels': [],
+        'values': [],
+        'y_label': ""
     }
+    if len(results) > 0:
+        chart_data['labels'] = [int(r.get('received_at').timestamp() * 1000) for r in results]
+        chart_data['values'] = [r.get('value') for r in results]
+        chart_data["y_label"] = f"{sensor.get('type')} ({results[0].get('unit')})"
+
     return render_template('measurements.html', data=results, sensor=sensor, chart_data=json.dumps(chart_data))
+
+
+@app.route("/live")
+def view_live_measurements():
+    device_id = request.args.get('device_id', fetch_sensors()[0][0]);
+    sensors = [row_to_dict(row, SENSOR_DICT_FIELDS) for row in fetch_results_from_db(
+        """
+        SELECT uuid, name, type, sensor, is_online
+        FROM sensor
+        ORDER BY CASE WHEN uuid = %s THEN 0 ELSE 1 END, uuid DESC
+        """,
+        False,
+        [device_id]
+    )]
+
+    return render_template('live_measurements.html', sensors=sensors, device_id=device_id)
 
 
 @app.route("/health", methods=["GET"])
@@ -176,11 +197,46 @@ def get_measurements_history():
     result = [row_to_dict(row) for row in rows]
     return jsonify(result)
 
+
 @app.route("/sensors", methods=["GET"])
 def get_sensors():
     result = fetch_sensors()
     return jsonify([row_to_dict(row, SENSOR_DICT_FIELDS) for row in result])
 
 
+def measurement_stream(device_id: str):
+    while True:
+        result = fetch_results_from_db(
+                """
+                SELECT id, group_id, device_id, sensor, value, unit, ts_ms, seq, topic, received_at
+                FROM measurements WHERE device_id = %s
+                ORDER BY id DESC
+                LIMIT 1
+                """,
+                True,
+                [device_id]
+        )
+        data = row_to_dict(result)
+
+        val = state["offset"] + state["amplitude"] * math.sin(state["step"] * state["frequency"])
+        state["step"] += 1
+
+        data["value"] = val;
+        data["timestamp"] = int(data["received_at"].timestamp() * 1000)
+        data["received_at"] = data["received_at"].strftime('%Y-%m-%d %H:%M:%S')
+
+        yield f"data: {json.dumps(data)}\n\n"
+        time.sleep(1)
+        
+
+@app.route("/stream/device/<device_id>")
+def get_measurements_stream(device_id: str):
+    response = Response(measurement_stream(device_id), mimetype="text/event-stream")
+    response.headers['Cache-Control'] = 'no-cache'
+    response.headers['Connection'] = 'keep-alive'
+    response.headers['X-Accel-Buffering'] = 'no'
+    return response
+
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5010)
+    app.run(host="0.0.0.0", port=5010, threaded=True)
