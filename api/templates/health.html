@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <h2 class="text-center">Stan systemu</h2>
+
+    <div class="text-center">
+        <table class="table table-bordered table-striped mt-4 align-middle w-25 m-auto">
+            <tbody>
+                <tr>
+                    <td>Status API</td>
+                    <td>
+                        <span class="badge {{ 'bg-success' if status.api_ok else 'bg-danger' }}">
+                            {{ "Online" if status.api_ok else "Offline" }}
+                        </span>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        
+    </div>
+
+{% endblock %}

@@ -15,17 +15,6 @@ state = {
 }
 
 
-def fetch_sensors():
-    return fetch_results_from_db(
-        """
-        SELECT uuid, name, type, sensor, is_online
-        FROM sensor
-        WHERE 1=1
-        """,
-        False
-    )
-
-
 def fetch_results_from_db(query, one_result = False, params = None, fields = None):
 
     if params is None:
@@ -47,6 +36,17 @@ def fetch_results_from_db(query, one_result = False, params = None, fields = Non
     conn.close()
 
     return result
+
+
+def fetch_sensors():
+    return fetch_results_from_db(
+        """
+        SELECT uuid, name, type, sensor, is_online
+        FROM sensor
+        WHERE 1=1
+        """,
+        False
+    )
 
 
 @app.route("/")
@@ -108,6 +108,12 @@ def view_live_measurements():
 
     return render_template('live_measurements.html', sensors=sensors, device_id=device_id)
 
+
+@app.route("/app-health", methods=["GET"])
+def view_health():
+    return render_template('health.html', status={
+        'api_ok': True
+    })
 
 @app.route("/health", methods=["GET"])
 def health():
