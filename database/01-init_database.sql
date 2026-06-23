@@ -21,3 +21,14 @@ CREATE TABLE IF NOT EXISTS measurements (
     topic TEXT,
     received_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS sensor_logs (
+    id SERIAL PRIMARY KEY,
+    device_id TEXT NOT NULL,
+    sensor TEXT NOT NULL,
+    status TEXT NOT NULL,
+    message TEXT NOT NULL,
+    ts_ms BIGINT NOT NULL,
+    topic TEXT,
+    received_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

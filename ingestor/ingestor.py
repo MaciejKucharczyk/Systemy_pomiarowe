@@ -1,7 +1,10 @@
 import paho.mqtt.client as mqtt
 import json
+import ssl
 from db import get_connection
 from config import MQTT_HOST, MQTT_PORT
+
+print(MQTT_PORT, MQTT_HOST)
 
 MEASURE_MSG_FIELDS_RULES = {
     "schema_version": {
@@ -50,10 +53,6 @@ STATUS_MSG_FIELDS_RULES = {
     "status": {
         "type": str,
         "min_len": 1
-    },
-    "code": {
-        "type": int,
-        "min": 0
     },
     "timestamp": {
         "type": int,
@@ -137,6 +136,41 @@ def store_new_sensor(data: dict):
     conn.close()
 
 
+def update_device_avaiability_status(device_id: str, online: bool):
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute("""
+        UPDATE sensor SET is_online = %s WHERE uuid = %s
+        """,
+        (online, device_id)
+    )
+    conn.commit()
+    cur.close()
+    conn.close()
+
+
+def store_status_message(topic, data: dict):
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute("""
+        INSERT INTO sensor_logs (device_id, sensor, status, message, ts_ms, topic)
+        VALUES (%s, %s, %s, %s, %s, %s);
+        """,
+        (
+            data.get("device_id"),
+            data.get("sensor_type"),
+            data.get("status"),
+            data.get("message"),
+            data.get("timestamp"),
+            topic
+        ))
+    conn.commit()
+    cur.close()
+    conn.close()
+
+
 def is_valid(data: dict, fields_rules: dict):
 
     for field, rules in fields_rules.items():
@@ -183,14 +217,17 @@ def on_message(client, userdata, msg):
     elif(is_valid(data, MEASURE_MSG_FIELDS_RULES)):
         print("Wiadomosc poprawna -> zapis do bazy")
         store_measurement(msg.topic, data)    
+        update_device_avaiability_status(data["device_id"], True)
     
     elif(is_valid(data, STATUS_MSG_FIELDS_RULES)):
-        print("Status message => ", data)
-
+        update_device_avaiability_status(data["device_id"], data["status"] != "offline")
+        store_status_message(msg.topic, data)
 
 mqtt_client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+mqtt_client.tls_set("./ca.crt", tls_version=ssl.PROTOCOL_TLSv1_2)
+mqtt_client.tls_insecure_set(True)
 mqtt_client.on_connect = on_connect
 mqtt_client.on_message = on_message
 
-mqtt_client.connect(MQTT_HOST, MQTT_PORT)
+mqtt_client.connect(MQTT_HOST, int(MQTT_PORT))
 mqtt_client.loop_forever()

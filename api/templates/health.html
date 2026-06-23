@@ -14,6 +14,14 @@
                         </span>
                     </td>
                 </tr>
+                <tr>
+                    <td>Baza danych</td>
+                    <td>
+                        <span class="badge {{ 'bg-success' if status.database_ok else 'bg-danger' }}">
+                            {{ "Online" if status.database_ok else "Offline" }}
+                        </span>
+                    </td>
+                </tr>
             </tbody>
         </table>
         

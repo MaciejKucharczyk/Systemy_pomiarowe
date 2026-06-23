@@ -17,6 +17,15 @@ SENSOR_DICT_FIELDS = [
     "sensor",
     "is_online"
 ]
+SENSOR_LOG_DICT_FIELDS = [
+    "uuid",
+    "type",
+    "status",
+    "message",
+    "ts_ms",
+    "topic",
+    "received_at"
+]
 
 def row_to_dict(row: list, fields: list = None):
 

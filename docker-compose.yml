@@ -63,6 +63,7 @@ services:
     environment:
       - DB_HOST=database
       - MQTT_HOST=broker
+      - MQTT_PORT=8883
     networks:
       - backend
 

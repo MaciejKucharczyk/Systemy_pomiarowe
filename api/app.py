@@ -1,6 +1,6 @@
 from flask import Flask, jsonify, render_template, request, Response
 from db import get_connection
-from models import row_to_dict, SENSOR_DICT_FIELDS
+from models import row_to_dict, SENSOR_DICT_FIELDS, SENSOR_LOG_DICT_FIELDS
 import math
 import json
 import time
@@ -111,9 +111,53 @@ def view_live_measurements():
 
 @app.route("/app-health", methods=["GET"])
 def view_health():
+    database_ok = False
+
+    try:
+        get_connection()
+        database_ok = True
+    except:
+        database_ok = False
+
     return render_template('health.html', status={
-        'api_ok': True
+        'api_ok': True,
+        "database_ok": database_ok
     })
+
+
+@app.route("/sensor-logs")
+def view_logs():
+    device_id = request.args.get('device_id', 'all')
+    limit = request.args.get('limit', 10)
+
+    query = """
+        SELECT sl.device_id, sl.sensor, sl.status, sl.message, sl.ts_ms, sl.topic, sl.received_at, s.name
+        FROM sensor_logs sl
+        INNER JOIN sensor s ON sl.device_id = s.uuid::text <WHERE>
+        ORDER BY id DESC
+        LIMIT %s
+        """
+    params = []
+
+    if device_id and device_id != "all":
+        query = query.replace("<WHERE>", f"WHERE sl.device_id = %s")
+        params.append(device_id)
+    else:
+        query = query.replace("<WHERE>", "")
+
+    params.append(limit)
+
+    results = fetch_results_from_db(
+        query,
+        False,
+        params
+    )
+    sensors = [row_to_dict(r, SENSOR_DICT_FIELDS) for r in fetch_sensors()]
+    logs = [row_to_dict(l, [*SENSOR_LOG_DICT_FIELDS, "sensor_name"]) for l in results]
+    print(logs)
+
+    return render_template('sensor_logs.html', logs=logs, sensors=sensors)
+
 
 @app.route("/health", methods=["GET"])
 def health():
@@ -224,10 +268,6 @@ def measurement_stream(device_id: str):
         )
         data = row_to_dict(result)
 
-        val = state["offset"] + state["amplitude"] * math.sin(state["step"] * state["frequency"])
-        state["step"] += 1
-
-        data["value"] = val;
         data["timestamp"] = int(data["received_at"].timestamp() * 1000)
         data["received_at"] = data["received_at"].strftime('%Y-%m-%d %H:%M:%S')
 

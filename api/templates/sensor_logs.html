@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <h1 class="text-center">Logi czujników</h1>
+
+    <nav class="navbar navbar-light bg-light p-3 border border-light-subtle">
+        <div class="container-fluid d-flex justify-content-between align-items-center">
+            <form 
+                action="{{ url_for('view_logs') }}" 
+                method="GET"
+                class="d-flex gap-2 align-items-center"
+            >
+
+                <div class="d-flex align-items-center gap-2">
+                    <label>Limit</label>
+                    <select class="form-select" aria-label="Wybierz limit" name="limit">
+                        {% for i in [1,2,3,4,5] %}
+                        <option 
+                            value="{{ i*10 }}" 
+                            {% if request.args.get('limit', 10) | int == i*10 %}selected{% endif %}
+                        >{{ i*10 }}</option>
+                        {%endfor %}
+                    </select>
+                </div>
+
+                <div class="d-flex align-items-center gap-2">
+                    <label>Sensor</label>
+                    <select class="form-select" aria-label="Wybierz limit" name="device_id">
+                        <option value="all">Wszystkie</option>
+                        {% for s in sensors %}
+                        <option 
+                            value="{{ s.uuid }}" 
+                            {% if request.args.get('device_id') == s.uuid %}selected{% endif %}
+                        >{{ s.name }}</option>
+                        {%endfor %}
+                    </select>
+                </div>
+
+                <button type="submit" class="btn btn-primary m-0">
+                    Aktualizuj
+                </button>
+            </form>
+        
+        </div>
+    </nav>
+    <div class="text-center">
+        <table class="table table-bordered table-striped mt-4 align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>ID / UUID</th>
+                    <th>Nazwa</th>
+                    <th>Typ</th>
+                    <th>Status</th>
+                    <th>Wiadomość</th>
+                    <th>Znacznik czasu</th>
+                    <th>Data odebrania</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in logs %}
+                <tr>
+                    <td>{{ row.uuid }}</td>
+                    <td>{{ row.sensor_name }}</td>
+                    <td>{{ row.type }}</td>
+                    <td>{{ row.status }}</td>
+                    <td>{{ row.message }}</td>
+                    <td>{{ row.ts_ms }}</td>
+                    <td>{{ row.received_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+    </div>
+
+{% endblock %}
