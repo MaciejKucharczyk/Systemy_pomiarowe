@@ -15,6 +15,21 @@ state = {
 }
 
 
+def get_health_status():
+    database_ok = False
+
+    try:
+        get_connection()
+        database_ok = True
+    except:
+        database_ok = False
+
+    return {
+        'api_ok': True,
+        "database_ok": database_ok
+    }
+
+
 def fetch_results_from_db(query, one_result = False, params = None, fields = None):
 
     if params is None:
@@ -111,18 +126,8 @@ def view_live_measurements():
 
 @app.route("/app-health", methods=["GET"])
 def view_health():
-    database_ok = False
 
-    try:
-        get_connection()
-        database_ok = True
-    except:
-        database_ok = False
-
-    return render_template('health.html', status={
-        'api_ok': True,
-        "database_ok": database_ok
-    })
+    return render_template('health.html', status=get_health_status())
 
 
 @app.route("/sensor-logs")
@@ -161,7 +166,7 @@ def view_logs():
 
 @app.route("/health", methods=["GET"])
 def health():
-    return jsonify({"status": "ok"})
+    return jsonify(get_health_status())
 
 
 @app.route("/measurements", methods=["GET"])
